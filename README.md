@@ -24,4 +24,5 @@ mirrorlist [OPTION...]
 $ mirrorlist
 $ mirrorlist -m 10
 $ mirrorlist -c 10 -m 5 -u https://www.archlinux.org/mirrorlist/?country=AU
+$ mirrorlist -u https://www.archlinux.org/mirrorlist/?country=AU > mirrorlist
 ```

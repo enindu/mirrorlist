@@ -19,7 +19,6 @@ func main() {
 	)
 
 	start := time.Now()
-
 	count := flag.Int("c", 3, "Count of mirrors")
 	maxTime := flag.Float64("m", 1, "Maximum response time (In seconds) of a mirror")
 	url := flag.String("u", "https://www.archlinux.org/mirrorlist/all", "Mirrorlist URL")
