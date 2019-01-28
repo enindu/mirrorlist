@@ -75,7 +75,7 @@ func main() {
 	sort.Float64s(executionTimes)
 
 	for _, executionTime := range executionTimes {
-		fmt.Printf("Server = %s/$repo/os/$arch # %f\n", sortedMirrors[executionTime], executionTime)
+		fmt.Printf("Server = %s/$repo/os/$arch\n", sortedMirrors[executionTime])
 	}
 
 	end := time.Now().Sub(start).Seconds()
