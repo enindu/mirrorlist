@@ -20,7 +20,7 @@ var (
 func main() {
 	// Set command line flags
 	mirrorsCount := flag.Int("count", 3, "Mirrors count")
-	responseTime := flag.Float64("max", 1, "Maximum response time of a mirror (In seconds)")
+	responseTime := flag.Float64("time", 1, "Maximum response time of a mirror (In seconds)")
 	mirrorlistURL := flag.String("url", "https://www.archlinux.org/mirrorlist/all", "Mirrorlist URL")
 
 	flag.Parse()
