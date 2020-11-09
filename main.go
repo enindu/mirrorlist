@@ -44,7 +44,7 @@ func main() {
 			start := time.Now()
 			http.Get(mirror)
 			end := time.Now().Sub(start).Seconds()
-			sortedMirrors <- fmt.Sprintf("%s/$repo/os/$arch #%f", mirror, end)
+			sortedMirrors <- fmt.Sprintf("Server = %s/$repo/os/$arch #%f", mirror, end)
 			waitGroup.Done()
 		}(mirror)
 	}
