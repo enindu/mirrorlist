@@ -29,18 +29,27 @@ import (
 )
 
 const (
-	allMirrorList   string = "https://www.archlinux.org/mirrorlist/all"
+	allMirrorList   string = "https://archlinux.org/mirrorlist/all"
 	httpMirrorList  string = "https://archlinux.org/mirrorlist/all/http"
 	httpsMirrorList string = "https://archlinux.org/mirrorlist/all/https"
 )
 
 func main() {
+	// Define execution start time.
+	start := time.Now()
+
 	// Create flags.
 	httpFlag := flag.Bool("http", false, "Use only HTTP mirrors to generate")
 	httpsFlag := flag.Bool("https", false, "Use only HTTPS mirrors to generate")
 	countFlag := flag.Int("count", 5, "Count of mirrors to generate")
 	pingsFlag := flag.Int("pings", 5, "Pings per a mirror. Higher pings means precise results, but high execution time.")
 	flag.Parse()
+
+	// Check if both -http and -https flags used.
+	if *httpFlag && *httpsFlag {
+		fmt.Printf("main: can not use both -http and -https flags at once\n")
+		return
+	}
 
 	// Create mirrors list URL string.
 	mirrorsListURLString := allMirrorList
@@ -50,9 +59,6 @@ func main() {
 	if *httpsFlag {
 		mirrorsListURLString = httpsMirrorList
 	}
-
-	// Define execution start time.
-	start := time.Now()
 
 	// Create mirrors list URL. If error occurs while creating URL, return error.
 	mirrorsListURL, mirrorsListURLFault := url.Parse(mirrorsListURLString)
