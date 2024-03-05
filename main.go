@@ -121,7 +121,8 @@ func main() {
 
 	// Print mirrors as in /etc/pacman.d/mirrorlist.
 	for _, item := range mirrors[:*countFlag] {
-		fmt.Printf("Server = %s/$repo/os/$arch # %f\n", item.url, item.duration)
+		fmt.Printf("# %f\n", item.duration)
+		fmt.Printf("Server = %s/$repo/os/$arch\n", item.url)
 	}
 
 	// Define execution end time.
