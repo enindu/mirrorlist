@@ -18,6 +18,7 @@ There are 4 flags in mirrorlist.
 - `-https`: Use only HTTPS mirrors to generate.
 - `-count`: Count of mirrors to generate. Default value is 5.
 - `-pings`: Pings per a mirror. Higher pings means precise results, but high execution time. Default value is 5.
+- `-verbose`: Display warnings and informations in output.
 
 Here're some examples of how to use mirrorlist.
 

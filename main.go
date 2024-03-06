@@ -49,7 +49,7 @@ func main() {
 	https := flag.Bool("https", false, "Use only HTTPS mirrors to generate.")
 	count := flag.Int("count", 5, "Count of mirrors to generate.")
 	pings := flag.Int("pings", 5, "Pings per a mirror. Higher pings means precise results, but high execution time.")
-	verbose := flag.Bool("verbose", false, "Omit errors, warnings, and informations from output.")
+	verbose := flag.Bool("verbose", false, "Display warnings and informations in output.")
 	flag.Parse()
 
 	// Check if both -http and -https flags used.
