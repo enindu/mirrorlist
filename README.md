@@ -23,3 +23,5 @@ There are 9 flags in mirrorlist.
 - `-pings`: Pings per a mirror. Higher pings means precise results, but high execution time.
 - `-output`: Store mirrors in a file. This truncate any existing file.
 - `-verbose`: Display warnings and informations in terminal.
+
+Run `mirrorlist -h` for more information.
