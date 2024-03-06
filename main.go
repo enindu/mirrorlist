@@ -20,8 +20,8 @@ import (
 	"cmp"
 	"flag"
 	"fmt"
-	_http "net/http"
-	_url "net/url"
+	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -37,38 +37,51 @@ const (
 	httpsMirrorListUrl string = "https://archlinux.org/mirrorlist/all/https"
 )
 
-func main() {
-	// Create printers.
-	info := palette.NewPrinterInfo()
-	warn := palette.NewPrinterWarn()
-	erro := palette.NewPrinterErro()
+var wait *sync.WaitGroup = &sync.WaitGroup{}
 
-	// Create flags.
-	http := flag.Bool("http", false, "Use only HTTP mirrors to generate. This can not use with -https flag.")
-	https := flag.Bool("https", false, "Use only HTTPS mirrors to generate. This can not use with -http flag.")
-	count := flag.Int("count", 5, "Count of mirrors to generate.")
-	pings := flag.Int("pings", 5, "Pings per a mirror. Higher pings means precise results, but high execution time.")
-	output := flag.String("output", "", "Store mirrors in a file. This truncate any existing file.")
-	verbose := flag.Bool("verbose", false, "Display warnings and informations in terminal.")
+var (
+	info *palette.Printer = palette.NewPrinterInfo()
+	warn *palette.Printer = palette.NewPrinterWarn()
+	erro *palette.Printer = palette.NewPrinterErro()
+)
+
+var (
+	mirrorListTimeout *time.Duration = flag.Duration("mirror-list-timeout", 10*time.Second, "Mirror list request timeout to send and receive response.")
+	mirrorTimeout     *time.Duration = flag.Duration("mirror-timeout", 5*time.Second, "Mirror request timeout to send and receive response.")
+	httpOnly          *bool          = flag.Bool("http-only", false, "Use only HTTP mirrors to generate. This can not use with -https-only flag.")
+	httpsOnly         *bool          = flag.Bool("https-only", false, "Use only HTTPS mirrors to generate. This can not use with -http-only flag.")
+	count             *int           = flag.Int("count", 5, "Count of mirrors to generate.")
+	pings             *int           = flag.Int("pings", 5, "Pings per a mirror. Higher pings means precise results, but high execution time.")
+	output            *string        = flag.String("output", "", "Store mirrors in a file. This truncate any existing file.")
+	verbose           *bool          = flag.Bool("verbose", false, "Display warnings and informations in terminal.")
+)
+
+func main() {
+	// Parse flags.
 	flag.Parse()
 
-	// Check if both -http and -https flags used.
-	if *http && *https {
-		erro.Write("ERRO could not run mirrorlist, because both -http and -https flags are used.\n")
+	// Check if both -http-only and -https-only flags used.
+	if *httpOnly && *httpsOnly {
+		erro.Write("ERRO could not run mirrorlist, because both -http-only and -https-only flags are used.\n")
 		return
 	}
 
 	// Create mirror list URL.
 	mirrorListUrl := allMirrorListUrl
-	if *http {
+	if *httpOnly {
 		mirrorListUrl = httpMirrorListUrl
 	}
-	if *https {
+	if *httpsOnly {
 		mirrorListUrl = httpsMirrorListUrl
 	}
 
+	// Create mirror list HTTP client.
+	mirrorListClient := &http.Client{
+		Timeout: *mirrorListTimeout,
+	}
+
 	// Get response from mirror list URL.
-	mirrorListResponse, fault := _http.Get(mirrorListUrl)
+	mirrorListResponse, fault := mirrorListClient.Get(mirrorListUrl)
 	if fault != nil {
 		erro.Write("ERRO could not run mirrorlist, because %s is not responding.\n", mirrorListUrl)
 		return
@@ -92,7 +105,7 @@ func main() {
 		}
 
 		// Parse mirror URL.
-		parseMirrorUrl, fault := _url.Parse(mirrorUrl)
+		parseMirrorUrl, fault := url.Parse(mirrorUrl)
 		if fault != nil {
 			if *verbose {
 				warn.Write("WARN could not parse %s\n", mirrorUrl)
@@ -105,22 +118,34 @@ func main() {
 		mirrorUrls = append(mirrorUrls, mirrorUrl)
 	}
 
+	// Create mirror HTTP client.
+	mirrorClient := &http.Client{
+		Timeout: *mirrorTimeout,
+	}
+
+	// Create mirrors channel.
+	mirrorUrlsLength := len(mirrorUrls)
+	mirrorsChannel := make(chan mirror, mirrorUrlsLength)
+
 	// Define execution start time.
 	start := time.Now()
 
 	// Ping mirror URLs and store URL and time.
-	mirrorUrlsLength := len(mirrorUrls)
-	mirrorsChannel := make(chan mirror, mirrorUrlsLength)
-	wait := sync.WaitGroup{}
 	wait.Add(mirrorUrlsLength)
 	for _, mirrorUrl := range mirrorUrls {
-		go ping(&wait, mirrorsChannel, mirrorUrl, *pings, *verbose)
+		go ping(mirrorUrl, mirrorClient, mirrorsChannel)
 	}
 	wait.Wait()
 	close(mirrorsChannel)
 
 	// Define execution end time.
 	end := time.Since(start).Seconds()
+
+	// Check if mirrors less than count.
+	if len(mirrorsChannel) < *count {
+		erro.Write("ERRO could not able to get %d mirror(s).\n", *count)
+		return
+	}
 
 	// Get mirrors.
 	mirrors := []mirror{}
@@ -165,7 +190,7 @@ func main() {
 	}
 }
 
-func ping(wait *sync.WaitGroup, mirrorsChannel chan mirror, mirrorUrl string, pings int, verbose bool) {
+func ping(mirrorUrl string, mirrorClient *http.Client, mirrorsChannel chan mirror) {
 	// Defer wait done.
 	defer wait.Done()
 
@@ -174,17 +199,17 @@ func ping(wait *sync.WaitGroup, mirrorsChannel chan mirror, mirrorUrl string, pi
 
 	// Ping mirror URL.
 	end := time.Duration(0)
-	for i := 0; i < pings; i++ {
+	for i := 0; i < *pings; i++ {
 		start := time.Now()
-		mirrorResponse, fault := _http.Get(mirrorUrl)
+		mirrorResponse, fault := mirrorClient.Get(mirrorUrl)
 		if fault != nil {
-			if verbose {
+			if *verbose {
 				warn.Write("WARN could not get response from %s.\n", mirrorUrl)
 			}
 			return
 		}
 		defer mirrorResponse.Body.Close()
-		if mirrorResponse.StatusCode != _http.StatusOK {
+		if mirrorResponse.StatusCode != http.StatusOK {
 			return
 		}
 		end = end + time.Since(start)
@@ -196,6 +221,6 @@ func ping(wait *sync.WaitGroup, mirrorsChannel chan mirror, mirrorUrl string, pi
 	// Send mirror to mirrors channel.
 	mirrorsChannel <- mirror{
 		url:  mirrorUrl,
-		time: end.Seconds() / float64(pings),
+		time: end.Seconds() / float64(*pings),
 	}
 }
