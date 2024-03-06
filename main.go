@@ -20,108 +20,116 @@ import (
 	"cmp"
 	"flag"
 	"fmt"
-	"net/http"
-	"net/url"
+	_http "net/http"
+	_url "net/url"
 	"slices"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/enindu/palette"
 )
 
 const (
-	allMirrorList   string = "https://archlinux.org/mirrorlist/all"
-	httpMirrorList  string = "https://archlinux.org/mirrorlist/all/http"
-	httpsMirrorList string = "https://archlinux.org/mirrorlist/all/https"
+	allMirrorListUrl   string = "https://archlinux.org/mirrorlist/all"
+	httpMirrorListUrl  string = "https://archlinux.org/mirrorlist/all/http"
+	httpsMirrorListUrl string = "https://archlinux.org/mirrorlist/all/https"
 )
 
 func main() {
 	// Define execution start time.
 	start := time.Now()
 
+	// Create printers.
+	warn := palette.NewPrinterWarn()
+	erro := palette.NewPrinterErro()
+
 	// Create flags.
-	httpFlag := flag.Bool("http", false, "Use only HTTP mirrors to generate")
-	httpsFlag := flag.Bool("https", false, "Use only HTTPS mirrors to generate")
-	countFlag := flag.Int("count", 5, "Count of mirrors to generate")
-	pingsFlag := flag.Int("pings", 5, "Pings per a mirror. Higher pings means precise results, but high execution time.")
+	http := flag.Bool("http", false, "Use only HTTP mirrors to generate.")
+	https := flag.Bool("https", false, "Use only HTTPS mirrors to generate.")
+	count := flag.Int("count", 5, "Count of mirrors to generate.")
+	pings := flag.Int("pings", 5, "Pings per a mirror. Higher pings means precise results, but high execution time.")
+	verbose := flag.Bool("verbose", false, "Omit errors, warnings, and informations from output.")
 	flag.Parse()
 
 	// Check if both -http and -https flags used.
-	if *httpFlag && *httpsFlag {
-		fmt.Printf("main: can not use both -http and -https flags at once\n")
+	if *http && *https {
+		erro.Write("ERRO could not run mirrorlist, because both -http and -https flags are used.\n")
 		return
 	}
 
-	// Create mirrors list URL string.
-	mirrorsListURLString := allMirrorList
-	if *httpFlag {
-		mirrorsListURLString = httpMirrorList
+	// Create mirror list URL.
+	mirrorListUrl := allMirrorListUrl
+	if *http {
+		mirrorListUrl = httpMirrorListUrl
 	}
-	if *httpsFlag {
-		mirrorsListURLString = httpsMirrorList
-	}
-
-	// Create mirrors list URL. If error occurs while creating URL, return error.
-	mirrorsListURL, mirrorsListURLFault := url.Parse(mirrorsListURLString)
-	if mirrorsListURLFault != nil {
-		fmt.Printf("%v\n", mirrorsListURLFault)
-		return
+	if *https {
+		mirrorListUrl = httpsMirrorListUrl
 	}
 
-	// Get response from mirrors list URL. If error occurs while getting response,
-	// return error.
-	mirrorsListURLString = mirrorsListURL.String()
-	mirrorsListResponse, mirrorsListResponseFault := http.Get(mirrorsListURLString)
-	if mirrorsListResponseFault != nil {
-		fmt.Printf("%v\n", mirrorsListResponseFault)
+	// Get response from mirror list URL.
+	mirrorListResponse, fault := _http.Get(mirrorListUrl)
+	if fault != nil {
+		erro.Write("ERRO could not run mirrorlist, because %s is not responding.\n", mirrorListUrl)
 		return
 	}
-	defer mirrorsListResponse.Body.Close()
+	defer mirrorListResponse.Body.Close()
 
 	// Create mirror URLs.
-	mirrorURLStrings := []string{}
-	mirrorsScanner := bufio.NewScanner(mirrorsListResponse.Body)
-	for mirrorsScanner.Scan() {
-		line := mirrorsScanner.Text()
-		line = strings.TrimSpace(line)
-		if line == "" {
+	mirrorUrls := []string{}
+	mirrorListScanner := bufio.NewScanner(mirrorListResponse.Body)
+	for mirrorListScanner.Scan() {
+		// Create mirror URL.
+		url := mirrorListScanner.Text()
+		url = strings.TrimSpace(url)
+		url = strings.TrimPrefix(url, "#Server = ")
+		url = strings.TrimSuffix(url, "/$repo/os/$arch")
+		if url == "" {
 			continue
 		}
-		if strings.HasPrefix(line, "##") {
+		if strings.HasPrefix(url, "##") {
 			continue
 		}
-		line = strings.TrimPrefix(line, "#Server = ")
-		line = strings.TrimSuffix(line, "/$repo/os/$arch")
-		mirrorURL, mirrorURLFault := url.Parse(line)
-		if mirrorURLFault != nil {
+
+		// Parse mirror URL.
+		parseUrl, fault := _url.Parse(url)
+		if fault != nil {
+			if *verbose {
+				warn.Write("WARN could not parse %s\n", url)
+			}
 			continue
 		}
-		mirrorURLString := mirrorURL.String()
-		mirrorURLStrings = append(mirrorURLStrings, mirrorURLString)
+		url = parseUrl.String()
+
+		// Store mirror URL.
+		mirrorUrls = append(mirrorUrls, url)
 	}
 
-	// Get mirrors.
-	mirrorURLStringsLength := len(mirrorURLStrings)
-	mirrorsChannel := make(chan mirror, mirrorURLStringsLength)
+	// Ping mirror URLs and store URL and time.
+	mirrorUrlsLength := len(mirrorUrls)
+	mirrorsChannel := make(chan mirror, mirrorUrlsLength)
 	wait := sync.WaitGroup{}
-	wait.Add(mirrorURLStringsLength)
-	for _, mirrorURLString := range mirrorURLStrings {
-		go ping(mirrorsChannel, mirrorURLString, *pingsFlag, &wait)
+	wait.Add(mirrorUrlsLength)
+	for _, mirrorUrl := range mirrorUrls {
+		go ping(&wait, mirrorsChannel, mirrorUrl, *pings, *verbose)
 	}
 	wait.Wait()
 	close(mirrorsChannel)
+
+	// Get mirrors.
 	mirrors := []mirror{}
 	for mirror := range mirrorsChannel {
 		mirrors = append(mirrors, mirror)
 	}
 
-	// Sort mirrors by duration.
+	// Sort mirrors by time.
 	slices.SortFunc(mirrors, func(x mirror, y mirror) int {
-		return cmp.Compare(x.duration, x.duration)
+		return cmp.Compare(x.time, y.time)
 	})
 
 	// Print mirrors as in /etc/pacman.d/mirrorlist.
-	for _, item := range mirrors[:*countFlag] {
-		fmt.Printf("# %f\n", item.duration)
+	for _, item := range mirrors[:*count] {
+		fmt.Printf("# %f\n", item.time)
 		fmt.Printf("Server = %s/$repo/os/$arch\n", item.url)
 	}
 
@@ -133,21 +141,26 @@ func main() {
 	fmt.Printf("## Generated by mirrorlist\n")
 }
 
-func ping(mirrorsChannel chan mirror, mirrorURLString string, pings int, wait *sync.WaitGroup) {
+func ping(wait *sync.WaitGroup, mirrorsChannel chan mirror, mirrorUrl string, pings int, verbose bool) {
 	// Defer wait done.
 	defer wait.Done()
 
-	// Send requests pings times to mirror URL and get total execution time. If
-	// execution time equals to 0, which means URL is not responding, return.
+	// Create printers.
+	warn := palette.NewPrinterWarn()
+
+	// Ping mirror URL (1 x pings time).
 	end := time.Duration(0)
 	for i := 0; i < pings; i++ {
 		start := time.Now()
-		mirrorResponse, fault := http.Get(mirrorURLString)
+		response, fault := _http.Get(mirrorUrl)
 		if fault != nil {
+			if verbose {
+				warn.Write("WARN could not get response from %s.\n", mirrorUrl)
+			}
 			return
 		}
-		defer mirrorResponse.Body.Close()
-		if mirrorResponse.StatusCode != http.StatusOK {
+		defer response.Body.Close()
+		if response.StatusCode != _http.StatusOK {
 			return
 		}
 		end = end + time.Since(start)
@@ -158,7 +171,7 @@ func ping(mirrorsChannel chan mirror, mirrorURLString string, pings int, wait *s
 
 	// Send mirror to mirrors channel.
 	mirrorsChannel <- mirror{
-		url:      mirrorURLString,
-		duration: end.Seconds() / float64(pings),
+		url:  mirrorUrl,
+		time: end.Seconds() / float64(pings),
 	}
 }

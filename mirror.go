@@ -16,6 +16,6 @@
 package main
 
 type mirror struct {
-	url      string
-	duration float64
+	url  string
+	time float64
 }
