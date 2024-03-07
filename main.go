@@ -143,7 +143,7 @@ func main() {
 
 	// Check if mirrors less than count.
 	if len(mirrorsChannel) < *count {
-		erro.Write("ERRO could not able to get %d mirror(s).\n", *count)
+		erro.Write("ERRO could not run mirrorlist, because unable to get %d mirror(s).\n", *count)
 		return
 	}
 
@@ -169,7 +169,7 @@ func main() {
 		// Open or create output file.
 		outputFile, fault := os.OpenFile(*output, os.O_CREATE|os.O_WRONLY, 0644)
 		if fault != nil {
-			erro.Write("ERRO could not create %s.\n", *output)
+			erro.Write("ERRO could not run mirrorlist, because unable to create %s.\n", *output)
 			return
 		}
 		defer outputFile.Close()
