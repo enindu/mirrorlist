@@ -194,9 +194,6 @@ func ping(mirrorUrl string, mirrorClient *http.Client, mirrorsChannel chan mirro
 	// Defer wait done.
 	defer wait.Done()
 
-	// Create printers.
-	warn := palette.NewPrinterWarn()
-
 	// Ping mirror URL.
 	end := time.Duration(0)
 	for i := 0; i < *pings; i++ {
