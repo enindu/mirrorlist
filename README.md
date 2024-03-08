@@ -24,4 +24,4 @@ There are 9 flags in mirrorlist.
 - `-output`: Store mirrors in a file. This truncate any existing file.
 - `-verbose`: Display warnings and informations in terminal.
 
-Run `mirrorlist -h` for more information.
+Run `go doc mirrorlist` for more information.

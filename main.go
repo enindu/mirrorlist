@@ -13,6 +13,33 @@
 // You should have received a copy of the GNU General Public License along with
 // mirrorlist. If not, see <https://www.gnu.org/licenses/>.
 
+// Mirrorlist is a simple pacman mirror list generator.
+//
+// Usage:
+//
+//	mirrorlist [flags]
+//
+// The flags are:
+//
+//	-mirror-list-timeout
+//		Mirror list request timeout to send and receive response.
+//	-mirror-timeout
+//		Mirror request timeout to send and receive response.
+//	-http-only
+//		Use only HTTP mirrors to generate. This can not use with -https-only
+//		flag.
+//	-https-only
+//		Use only HTTPS mirrors to generate. This can not use with -http-only
+//		flag.
+//	-count
+//		Count of mirrors to generate.
+//	-pings
+//		Pings per a mirror. Higher pings means precise results, but high
+//		execution time.
+//	-output
+//		Store mirrors in a file. This truncate any existing file.
+//	-verbose
+//		Display warnings and informations in terminal.
 package main
 
 import (
