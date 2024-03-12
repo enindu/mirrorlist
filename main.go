@@ -109,8 +109,8 @@ func main() {
 	}
 
 	// Get response from mirror list URL.
-	mirrorListResponse, fault := mirrorListClient.Get(mirrorListUrl)
-	if fault != nil {
+	mirrorListResponse, err := mirrorListClient.Get(mirrorListUrl)
+	if err != nil {
 		erro.Print("could not run mirrorlist, because %s is not responding.\n", mirrorListUrl)
 		return
 	}
@@ -133,8 +133,8 @@ func main() {
 		}
 
 		// Parse mirror URL.
-		parseMirrorUrl, fault := url.Parse(mirrorUrl)
-		if fault != nil {
+		parseMirrorUrl, err := url.Parse(mirrorUrl)
+		if err != nil {
 			if *verbose {
 				warn.Print("could not parse %s\n", mirrorUrl)
 			}
@@ -155,8 +155,8 @@ func main() {
 	mirrorUrlsLength := len(mirrorUrls)
 	mirrorsChannel := make(chan mirror, mirrorUrlsLength)
 
-	// Define execution start time.
-	start := time.Now()
+	// Define execution beginning time.
+	begin := time.Now()
 
 	// Ping mirror URLs and store URL and time.
 	wait.Add(mirrorUrlsLength)
@@ -166,8 +166,8 @@ func main() {
 	wait.Wait()
 	close(mirrorsChannel)
 
-	// Define execution end time.
-	end := time.Since(start).Seconds()
+	// Define execution ending time.
+	end := time.Since(begin).Seconds()
 
 	// Check if mirrors less than count.
 	if len(mirrorsChannel) < *count {
@@ -195,8 +195,8 @@ func main() {
 		}
 	} else {
 		// Open or create output file.
-		outputFile, fault := os.OpenFile(*output, os.O_CREATE|os.O_WRONLY, 0644)
-		if fault != nil {
+		outputFile, err := os.OpenFile(*output, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
 			erro.Print("could not run mirrorlist, because unable to create %s.\n", *output)
 			return
 		}
@@ -218,34 +218,37 @@ func main() {
 	}
 }
 
-func ping(mirrorUrl string, mirrorClient *http.Client, mirrorsChannel chan mirror) {
+func ping(u string, cl *http.Client, ch chan mirror) {
 	// Defer wait done.
 	defer wait.Done()
 
 	// Ping mirror URL.
 	end := time.Duration(0)
 	for i := 0; i < *pings; i++ {
-		start := time.Now()
-		mirrorResponse, fault := mirrorClient.Get(mirrorUrl)
-		if fault != nil {
+		begin := time.Now()
+		response, err := cl.Get(u)
+		if err != nil {
 			if *verbose {
-				warn.Print("could not get response from %s.\n", mirrorUrl)
+				warn.Print("could not get response from %s.\n", u)
 			}
 			return
 		}
-		defer mirrorResponse.Body.Close()
-		if mirrorResponse.StatusCode != http.StatusOK {
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			if *verbose {
+				warn.Print("Got status code %d from %s.\n", response.StatusCode, u)
+			}
 			return
 		}
-		end = end + time.Since(start)
+		end = end + time.Since(begin)
 	}
 	if end == 0 {
 		return
 	}
 
 	// Send mirror to mirrors channel.
-	mirrorsChannel <- mirror{
-		url:  mirrorUrl,
+	ch <- mirror{
+		url:  u,
 		time: end.Seconds() / float64(*pings),
 	}
 }
