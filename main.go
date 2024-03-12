@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU General Public License along with
 // mirrorlist. If not, see <https://www.gnu.org/licenses/>.
 
-// Mirrorlist is a simple pacman mirror list generator.
+// Mirrorlist is a simple [pacman] mirror list generator.
 //
 // Usage:
 //
@@ -40,6 +40,8 @@
 //		Store mirrors in a file. This truncate any existing file.
 //	-verbose
 //		Display warnings and informations in terminal.
+//
+// [pacman]: https://wiki.archlinux.org/index.php/Pacman
 package main
 
 import (
