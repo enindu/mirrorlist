@@ -1,4 +1,4 @@
-# mirrorlist
+# Mirrorlist
 
 Mirrorlist is a simple [pacman](https://wiki.archlinux.org/index.php/Pacman) mirror list generator.
 
