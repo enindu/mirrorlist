@@ -12,7 +12,7 @@ go install github.com/enindu/mirrorlist
 
 ## Usage
 
-There are 9 flags for `mirrorlist` command.
+There are 8 flags for `mirrorlist` command.
 
 - `-mirror-list-timeout`: Request timeout to send and receive response from mirror list URL.
 - `-mirror-timeout`: Request timeout to send and receive response from mirror URL.
