@@ -14,7 +14,6 @@ go install github.com/enindu/mirrorlist
 
 There are 9 flags for `mirrorlist` command.
 
-- `-h`: Display help message.
 - `-mirror-list-timeout`: Request timeout to send and receive response from mirror list URL.
 - `-mirror-timeout`: Request timeout to send and receive response from mirror URL.
 - `-http-only`: Use only HTTP mirrors to generate mirror list. This can not use with -https-only flag.
